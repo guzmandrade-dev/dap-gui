@@ -1,5 +1,6 @@
 import { useDebugStore } from '../../stores/debugStore';
 import { useEditorStore } from '../../stores/editorStore';
+import { useConfigStore } from '../../stores/configStore';
 
 interface StatusBarProps {
   isActive: boolean;
@@ -8,6 +9,7 @@ interface StatusBarProps {
 export function StatusBar({ isActive }: StatusBarProps) {
   const { currentFile, currentLine } = useDebugStore();
   const { fileContents } = useEditorStore();
+  const { workspaceRoot } = useConfigStore();
 
   const fileCount = fileContents.size;
 
@@ -18,6 +20,13 @@ export function StatusBar({ isActive }: StatusBarProps) {
           <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-gray-500'}`} />
           <span>{isActive ? 'Debugging' : 'Idle'}</span>
         </div>
+        
+        {workspaceRoot && (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-600">|</span>
+            <span className="truncate max-w-[400px]" title={workspaceRoot}>{workspaceRoot}</span>
+          </div>
+        )}
         
         {currentFile && (
           <div className="flex items-center gap-2">

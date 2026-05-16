@@ -15,6 +15,9 @@ export interface ElectronAPI {
   // File operations
   readFile: (path: string) => Promise<string>;
   fileExists: (path: string) => Promise<boolean>;
+  readDirectory: (path: string) => Promise<Array<{ name: string; path: string; isDirectory: boolean }>>;
+  writeFile: (path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
   getLaunchConfig: () => Promise<Record<string, unknown> | null>;
   getWorkspaceRoot: () => Promise<string>;
   setWorkspaceRoot: (root: string) => Promise<string>;
@@ -25,6 +28,12 @@ export interface ElectronAPI {
   openFolder: () => Promise<void>;
   onFolderOpened: (callback: (path: string) => void) => () => void;
   onWorkspaceChanged: (callback: (path: string) => void) => () => void;
+  
+  // Window controls
+  windowMinimize: () => Promise<void>;
+  windowMaximize: () => Promise<void>;
+  windowClose: () => Promise<void>;
+  execCommand: (command: string) => Promise<{ stdout: string; stderr: string }>;
   
   // Debug session operations
   debugStart: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;

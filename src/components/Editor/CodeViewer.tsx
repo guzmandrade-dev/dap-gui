@@ -1,8 +1,18 @@
 import Editor, { OnMount } from '@monaco-editor/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../stores/editorStore';
 import { useDebugStore } from '../../stores/debugStore';
 import { getLanguageForFile, fetchFileContent } from '../../utils/fileLoader';
+
+interface Settings {
+  editorCommand: string;
+  editorArgs: string;
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  editorCommand: 'code',
+  editorArgs: '{file}:{line}',
+};
 
 interface CodeViewerProps {
   className?: string;
@@ -12,6 +22,7 @@ export function CodeViewer({ className }: CodeViewerProps) {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const decorationsRef = useRef<string[]>([]);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   
   const { currentFile, fileContents } = useEditorStore();
   const { 
@@ -21,6 +32,34 @@ export function CodeViewer({ className }: CodeViewerProps) {
     setBreakpoint, 
     removeBreakpoint 
   } = useDebugStore();
+
+  // Load settings
+  useEffect(() => {
+    const saved = localStorage.getItem('dapdesk-settings');
+    if (saved) {
+      try {
+        setSettings(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      }
+    }
+  }, []);
+
+  const openInEditor = async () => {
+    if (!currentFile) return;
+    
+    const line = currentLine || 1;
+    const args = settings.editorArgs
+      .replace('{file}', currentFile)
+      .replace('{line}', line.toString());
+    
+    try {
+      await window.electronAPI?.execCommand?.(`${settings.editorCommand} ${args}`);
+    } catch (err) {
+      console.error('Failed to open editor:', err);
+      alert(`Failed to open ${settings.editorCommand}. Make sure it's installed and in your PATH.`);
+    }
+  };
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -118,6 +157,7 @@ export function CodeViewer({ className }: CodeViewerProps) {
 
   const content = currentFile ? fileContents.get(currentFile) || '' : '';
   const language = currentFile ? getLanguageForFile(currentFile) : 'plaintext';
+  const fileName = currentFile ? currentFile.split('/').pop() : '';
 
   if (!currentFile) {
     return (
@@ -125,7 +165,7 @@ export function CodeViewer({ className }: CodeViewerProps) {
         <div className="text-center">
           <div className="text-4xl mb-2">📁</div>
           <div>No file open</div>
-          <div className="text-sm mt-2">Start a debug session to view code</div>
+          <div className="text-sm mt-2">Open a file from the explorer to view code</div>
         </div>
       </div>
     );
@@ -134,6 +174,29 @@ export function CodeViewer({ className }: CodeViewerProps) {
   return (
     <div className={className}>
       <div className="h-full flex flex-col">
+        {/* File header */}
+        <div className="h-9 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-3 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-gray-400 text-sm truncate" title={currentFile}>
+              {fileName}
+            </span>
+            {currentLine && (
+              <span className="text-xs text-gray-500">
+                :{currentLine}
+              </span>
+            )}
+          </div>
+          
+          <button
+            onClick={openInEditor}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+            title={`Open in ${settings.editorCommand}`}
+          >
+            <span>📝</span>
+            <span>Open in Editor</span>
+          </button>
+        </div>
+        
         {/* Editor */}
         <div className="flex-1">
           <Editor

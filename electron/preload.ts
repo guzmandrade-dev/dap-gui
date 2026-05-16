@@ -4,6 +4,9 @@ export interface ElectronAPI {
   // File operations
   readFile: (path: string) => Promise<string>;
   fileExists: (path: string) => Promise<boolean>;
+  readDirectory: (path: string) => Promise<Array<{ name: string; path: string; isDirectory: boolean }>>;
+  writeFile: (path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
   getLaunchConfig: () => Promise<Record<string, unknown> | null>;
   getWorkspaceRoot: () => Promise<string>;
   setWorkspaceRoot: (root: string) => Promise<string>;
@@ -14,6 +17,12 @@ export interface ElectronAPI {
   openFolder: () => Promise<void>;
   onFolderOpened: (callback: (path: string) => void) => () => void;
   onWorkspaceChanged: (callback: (path: string) => void) => () => void;
+  
+  // Window controls
+  windowMinimize: () => Promise<void>;
+  windowMaximize: () => Promise<void>;
+  windowClose: () => Promise<void>;
+  execCommand: (command: string) => Promise<{ stdout: string; stderr: string }>;
   
   // Debug session
   debugStart: (config: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
@@ -64,6 +73,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
   readFile: (path: string) => ipcRenderer.invoke('read-file', path),
   fileExists: (path: string) => ipcRenderer.invoke('file-exists', path),
+  readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
+  writeFile: (path: string, content: string) => ipcRenderer.invoke('write-file', path, content),
+  createDirectory: (path: string) => ipcRenderer.invoke('create-directory', path),
   getLaunchConfig: () => ipcRenderer.invoke('get-launch-config'),
   getWorkspaceRoot: () => ipcRenderer.invoke('get-workspace-root'),
   setWorkspaceRoot: (root: string) => ipcRenderer.invoke('set-workspace-root', root),
@@ -82,6 +94,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('workspace-changed', handler);
     return () => ipcRenderer.removeListener('workspace-changed', handler);
   },
+  
+  // Window controls
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  execCommand: (command: string) => ipcRenderer.invoke('exec-command', command),
   
   // Debug session
   debugStart: (config: Record<string, unknown>) => ipcRenderer.invoke('debug-start', config),

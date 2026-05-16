@@ -12,6 +12,7 @@ export interface AdapterInfo {
 }
 
 // Catalog of popular debug adapters from Open VSX
+// URLs use the Open VSX API format: https://open-vsx.org/api/{namespace}/{extension}/latest
 export const ADAPTER_CATALOG: AdapterInfo[] = [
   {
     id: 'felixfbecker.php-debug',
@@ -19,7 +20,8 @@ export const ADAPTER_CATALOG: AdapterInfo[] = [
     description: 'Debug support for PHP with XDebug',
     publisher: 'felixfbecker',
     version: '1.34.0',
-    downloadUrl: 'https://open-vsx.org/api/felixfbecker/php-debug/latest/file/felixfbecker.php-debug-1.34.0.vsix',
+    // Using GitHub releases as fallback since Open VSX may not have all versions
+    downloadUrl: 'https://github.com/xdebug/vscode-php-debug/releases/download/v1.34.0/php-debug-1.34.0.vsix',
     installed: false,
     entryPoint: 'extension/out/phpDebug.js',
     supportedLanguages: ['php'],

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { ADAPTER_CATALOG, AdapterInfo } from '../src/utils/adapterManager';
@@ -131,12 +131,10 @@ const createWindow = () => {
       nodeIntegration: false,
       sandbox: true,
     },
-    titleBarStyle: 'default',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: false,
     show: false,
   });
-
-  // Setup menu
-  setupMenu();
 
   // Load the app
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -157,58 +155,6 @@ const createWindow = () => {
     mainWindow = null;
   });
 };
-
-// Setup application menu
-function setupMenu() {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Open Folder',
-          accelerator: 'CmdOrCtrl+O',
-          click: async () => {
-            await openFolder();
-          },
-        },
-        {
-          label: 'Open Recent',
-          submenu: [], // Will be populated dynamically
-        },
-        { type: 'separator' },
-        {
-          label: 'Exit',
-          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-          click: () => {
-            app.quit();
-          },
-        },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        {
-          label: 'Reload',
-          accelerator: 'CmdOrCtrl+R',
-          click: () => {
-            mainWindow?.webContents.reload();
-          },
-        },
-        {
-          label: 'Toggle Developer Tools',
-          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-          click: () => {
-            mainWindow?.webContents.toggleDevTools();
-          },
-        },
-      ],
-    },
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-}
 
 // Open folder dialog
 async function openFolder() {
@@ -246,8 +192,6 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
-// Helper to get adapters directory
 
 // Helper to download file with progress
 async function downloadFile(
@@ -317,6 +261,37 @@ ipcMain.handle('open-folder', async () => {
   await openFolder();
 });
 
+// Window control handlers
+ipcMain.handle('window-minimize', () => {
+  mainWindow?.minimize();
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+});
+
+ipcMain.handle('window-close', () => {
+  mainWindow?.close();
+});
+
+// Execute command
+ipcMain.handle('exec-command', async (_event, command: string) => {
+  const { exec } = await import('child_process');
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error.message);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+});
+
 ipcMain.handle('get-launch-config', async () => {
   try {
     const configPath = path.join(currentProjectPath || process.cwd(), '.vscode', 'launch.json');
@@ -337,12 +312,66 @@ ipcMain.handle('get-workspace-root', () => {
   return currentProjectPath || process.cwd();
 });
 
+ipcMain.handle('set-workspace-root', (_event, root: string) => {
+  currentProjectPath = root;
+  // Notify renderer that workspace changed
+  mainWindow?.webContents.send('workspace-changed', root);
+  return root;
+});
+
 ipcMain.handle('path-resolve', (_event, ...paths: string[]) => {
   return path.resolve(...paths);
 });
 
 ipcMain.handle('path-join', (_event, ...paths: string[]) => {
   return path.join(...paths);
+});
+
+// Read directory contents
+ipcMain.handle('read-directory', async (_event, dirPath: string) => {
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const nodes = entries.map(entry => ({
+      name: entry.name,
+      path: path.join(dirPath, entry.name),
+      isDirectory: entry.isDirectory(),
+    }));
+    
+    // Sort: directories first, then files, both alphabetically
+    nodes.sort((a, b) => {
+      if (a.isDirectory === b.isDirectory) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.isDirectory ? -1 : 1;
+    });
+    
+    return nodes;
+  } catch (err) {
+    console.error('Failed to read directory:', err);
+    return [];
+  }
+});
+
+// Create directory
+ipcMain.handle('create-directory', async (_event, dirPath: string) => {
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to create directory:', err);
+    return { success: false, error: String(err) };
+  }
+});
+
+// Write file
+ipcMain.handle('write-file', async (_event, filePath: string, content: string) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to write file:', err);
+    return { success: false, error: String(err) };
+  }
 });
 
 // Debug Session IPC Handlers
@@ -372,7 +401,7 @@ ipcMain.handle('debug-step-over', async () => {
 });
 
 ipcMain.handle('debug-step-into', async () => {
-  await debugManager.stepInto();
+    await debugManager.stepInto();
   return { success: true };
 });
 
