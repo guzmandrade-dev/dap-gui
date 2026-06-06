@@ -1,7 +1,7 @@
 # DAP Debugger GUI - Detailed Development Plan
 
 ## Executive Summary
-Building **"DapDesk"** (working title) - A standalone DAP client GUI app using Electron + TypeScript + React + Monaco Editor.
+Building **"simple-dap-gui"** (working title) - A standalone DAP client GUI app using Electron + TypeScript + React + Monaco Editor.
 
 ---
 
@@ -21,8 +21,8 @@ Building **"DapDesk"** (working title) - A standalone DAP client GUI app using E
 
 ```bash
 # Create project
-npm create electron@latest dapdesk -- --template=react-ts
-cd dapdesk
+npm create electron@latest simple-dap-gui -- --template=react-ts
+cd simple-dap-gui
 
 # Add dependencies
 npm install @monaco-editor/react monaco-editor zustand
@@ -39,7 +39,7 @@ npm install vscode-php-debug --save-dev  # We'll use this for testing
 ### Folder Structure
 
 ```
-dapdesk/
+simple-dap-gui/
 ├── electron/                 # Electron main process
 │   ├── main.ts              # Entry point
 │   ├── preload.ts           # Preload script, exposes safe APIs
@@ -212,8 +212,8 @@ export class DebugSession {
     
     // Initialize sequence
     const initResponse = await this.client.sendRequest('initialize', {
-      clientID: 'dapdesk',
-      clientName: 'DapDesk',
+      clientID: 'simple-dap-gui',
+      clientName: 'simple-dap-gui',
       adapterID: this.config.type,
       pathFormat: 'path',
       linesStartAt1: true,
@@ -598,7 +598,7 @@ export const useDebugStore = create<DebugState>()(
       },
     }),
     {
-      name: 'dapdesk-storage',
+      name: 'simple-dap-gui-storage',
       partialize: (state) => ({ recentConfigs: state.recentConfigs }),
     }
   )

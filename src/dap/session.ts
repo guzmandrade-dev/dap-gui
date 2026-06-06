@@ -14,7 +14,7 @@ export class DebugSession {
   constructor(private config: LaunchConfiguration) {
     this.client = new DAPClient();
     this.setupEventHandlers();
-    
+
     // Store path mappings from config
     if (config.pathMappings) {
       this.pathMappings = config.pathMappings;
@@ -54,11 +54,11 @@ export class DebugSession {
 
   async start(adapterPath: string) {
     await this.client.spawn(adapterPath);
-    
+
     // Initialize sequence
     const initResponse = await this.client.sendRequest('initialize', {
-      clientID: 'dapdesk',
-      clientName: 'DapDesk',
+      clientID: 'simple-dap-gui',
+      clientName: 'simple-dap-gui',
       adapterID: this.config.type,
       pathFormat: 'path',
       linesStartAt1: true,
@@ -82,7 +82,7 @@ export class DebugSession {
   private async onStopped(event: DebugProtocol.StoppedEvent['body']) {
     console.log('Stopped event:', event);
     this.currentThreadId = event.threadId;
-    
+
     // Always fetch stack trace on stop
     if (event.threadId) {
       const stack = await this.client.sendRequest('stackTrace', {
@@ -90,16 +90,16 @@ export class DebugSession {
         startFrame: 0,
         levels: 20,
       }) as DebugProtocol.StackTraceResponse;
-      
+
       // Emit for UI
       this.client.emit('stackTrace', stack.body);
-      
+
       // Fetch variables for top frame
       if (stack.body.stackFrames.length > 0) {
         await this.fetchVariables(stack.body.stackFrames[0].id);
       }
     }
-    
+
     // Emit stopped event for store
     this.client.emit('stoppedEvent', event);
   }
@@ -161,7 +161,7 @@ export class DebugSession {
 
     // Convert local path to server path if needed
     const serverPath = this.localToServerPath(filePath);
-    
+
     await this.client.sendRequest('setBreakpoints', {
       source: { path: serverPath },
       breakpoints: lines.map(line => ({ line })),

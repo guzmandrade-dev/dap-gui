@@ -164,7 +164,7 @@ export function SettingsPanel() {
       <div className="border-t border-border pt-4">
         <h3 className="text-sm font-bold text-text mb-2">About</h3>
         <p className="text-xs text-muted">
-          DapDesk v0.1.0<br />
+          simple-dap-gui v0.1.0<br />
           A DAP Debugger GUI built with Electron
         </p>
       </div>

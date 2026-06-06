@@ -1,4 +1,4 @@
-# DapDesk - DAP Debugger GUI
+# simple-dap-gui - DAP Debugger GUI
 
 A standalone DAP (Debug Adapter Protocol) client GUI application built with Electron, React, TypeScript, and Monaco Editor.
 

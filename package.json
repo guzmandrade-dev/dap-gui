@@ -1,5 +1,5 @@
 {
-  "name": "dapdesk",
+  "name": "simple-dap-gui",
   "version": "0.2.0",
   "description": "A standalone DAP client GUI app using Electron + React + Monaco Editor",
   "main": "dist-electron/main.js",
