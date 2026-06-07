@@ -37,12 +37,14 @@ export interface AppSettings {
   theme: 'dark' | 'light';
   editorCommand: string;
   editorArgs: string;
+  persistentBreakpoints: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   editorCommand: 'code',
   editorArgs: '{file}',
+  persistentBreakpoints: false,
 };
 
 const SETTINGS_FILENAME = 'settings.json';
@@ -98,7 +100,8 @@ class DebugSessionManager {
   private session: DebugSession | null = null;
 
   async start(config: LaunchConfiguration, initialBreakpoints?: Map<string, number[]>): Promise<void> {
-    this.session = new DebugSession(config);
+    const workspaceRoot = currentProjectPath || process.cwd();
+    this.session = new DebugSession(config, workspaceRoot);
     
     // Queue any breakpoints that were set before the session started
     if (initialBreakpoints) {
@@ -210,7 +213,18 @@ class DebugSessionManager {
     });
 
     this.session.client.on('stackTrace', (body: DebugProtocol.StackTraceResponse['body']) => {
-      mainWindow?.webContents.send('dap-stack-trace', body);
+      if (!this.session) return;
+      const mappedBody = {
+        ...body,
+        stackFrames: body.stackFrames.map(frame => ({
+          ...frame,
+          source: frame.source ? {
+            ...frame.source,
+            path: this.session!.serverToLocalPath(frame.source.path || '')
+          } : undefined
+        }))
+      };
+      mainWindow?.webContents.send('dap-stack-trace', mappedBody);
     });
 
     this.session.client.on('scopes', (body: DebugProtocol.ScopesResponse['body']) => {
@@ -568,6 +582,7 @@ ipcMain.handle('create-directory', async (_event, dirPath: string) => {
 // Write file
 ipcMain.handle('write-file', async (_event, filePath: string, content: string) => {
   try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, 'utf-8');
     return { success: true };
   } catch (err) {

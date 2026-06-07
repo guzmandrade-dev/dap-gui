@@ -107,19 +107,72 @@ input:focus-visible {
   text-orientation: mixed;
   transform: rotate(180deg);
 }
-.breakpoint-glyph {
-  background: var(--color-danger);
-  width: 10px !important;
-  height: 10px !important;
-  margin-left: 2px;
+
+/* PrismJS syntax highlighting tokens */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--color-text-muted);
 }
 
-.current-line-highlight {
-  background: rgba(202, 138, 4, 0.15);
-  border-left: 3px solid var(--color-warning);
+.token.punctuation {
+  color: var(--color-text-secondary);
 }
 
-.breakpoint-glyph.current-line-glyph {
-  background: var(--color-warning);
-  border: 2px solid var(--color-danger);
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #f472b6;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #a3e635;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--color-text-secondary);
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #60a5fa;
+}
+
+.token.function,
+.token.class-name {
+  color: #fbbf24;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #f87171;
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
 }

@@ -1,17 +1,17 @@
-# simple-dap-gui - DAP Debugger GUI
+# simple-dap-gui - Xdebug Debugger GUI
 
-A standalone DAP (Debug Adapter Protocol) client GUI application built with Electron, React, TypeScript, and Monaco Editor.
+A standalone DAP (Debug Adapter Protocol) client GUI application built with Electron, React, TypeScript, and PrismJS. Primarily designed for **PHP debugging with Xdebug**.
 
 ## Features
 
-- **DAP Protocol Support**: Works with any DAP-compatible debug adapter (PHP, Python, Node.js, C/C++, etc.)
-- **Monaco Editor**: VS Code's editor with syntax highlighting and breakpoint gutter support
+- **Xdebug / PHP Focus**: First-class support for PHP debugging via the `vscode-php-debug` adapter
+- **PrismJS Code Viewer**: Lightweight, read-only code viewer with syntax highlighting and breakpoint gutter support
 - **Path Mapping**: Full support for remote debugging with path mappings
-- **Call Stack View**: Navigate through the call stack during debugging
+- **Call Stack View**: Navigate through the call stack during debugging — click any frame to jump to its source
 - **Variables Panel**: Inspect variables at different scopes with expandable children
 - **Watch Panel**: Evaluate and monitor custom expressions while debugging
 - **Dark/Light Theme**: Toggle between dark and light editor themes via settings
-- **Debug Adapter Management**: Built-in manager to install/uninstall DAP adapters
+- **Debug Adapter Management**: Built-in manager to install/uninstall DAP adapters (custom .vsix install supported)
 - **Lazy File Loading**: File tree loads directories on-demand with recursive expansion
 - **Workspace Integration**: Open workspace directly in your preferred external editor
 - **Collapsible Layout**: Collapse the editor panel to focus on file explorer and debug tools
@@ -30,7 +30,7 @@ dap-gui/
 │   │   ├── session.ts    # Debug session management
 │   │   └── types.ts      # TypeScript type definitions
 │   ├── components/       # React components
-│   │   ├── Editor/       # Monaco Editor wrapper
+│   │   ├── Editor/       # PrismJS code viewer
 │   │   ├── FileExplorer/ # Workspace file tree with lazy loading
 │   │   ├── Panels/       # Side panels (stack, variables, watch, breakpoints, settings, adapters)
 │   │   ├── Toolbar/      # Debug controls
@@ -112,13 +112,13 @@ Inspect local and global variables at the current stack frame. Expand arrays and
 Add custom expressions (e.g., `$myVariable`, `$_SERVER['REQUEST_URI']`) to monitor their values as you step through code. Watches are re-evaluated automatically on every stop.
 
 ### Call Stack
-Navigate between stack frames to inspect variables at different levels of execution.
+Navigate between stack frames to inspect variables at different levels of execution. Click any frame to jump directly to its source file and line in the editor.
 
 ### Breakpoints
 View and manage all breakpoints set across the workspace.
 
 ### Adapters
-Install, uninstall, and manage DAP adapters for different languages.
+Install, uninstall, and manage DAP adapters. The built-in catalog currently lists the **PHP Debug** adapter. You can also install any adapter from a `.vsix` file.
 
 ## External Editor Integration
 
@@ -139,16 +139,22 @@ Click the **→** arrow in the editor header to collapse the editor panel. This 
 
 ## Theme & Appearance
 
-The app supports dark and light themes via CSS custom properties mapped to Tailwind's semantic color tokens (`bg-panel`, `text-accent`, `border-danger`, etc.). Themes are persisted to `localStorage` and switch instantly across the UI and Monaco Editor.
+The app supports dark and light themes via CSS custom properties mapped to Tailwind's semantic color tokens (`bg-panel`, `text-accent`, `border-danger`, etc.). Themes are persisted to `localStorage` and switch instantly across the UI and PrismJS code viewer.
 
 ## Debug Adapter Management
 
-Install or uninstall DAP adapters from the **Adapters** panel. The manager tracks installed adapters, their paths, and supported languages. Currently supports:
+Install or uninstall DAP adapters from the **Adapters** panel. The manager tracks installed adapters, their paths, and supported languages.
 
-- **PHP**: `vscode-php-debug`
+### Current Focus
+- **PHP**: `vscode-php-debug` — primary and tested adapter
+
+### Roadmap
+Future versions may expand first-class support to:
 - **Python**: `debugpy`
 - **Node.js**: Built-in DAP support
 - **C/C++**: `vscode-cpptools`
+
+In the meantime, any DAP-compatible adapter can be installed manually via the **Install from .vsix** button.
 
 ## Development
 
@@ -174,13 +180,6 @@ The application supports path mappings for remote debugging. Configure them in y
 ```
 
 This converts server paths to local paths when displaying files and vice versa when setting breakpoints.
-
-## Supported Debug Adapters
-
-- **PHP**: Install `vscode-php-debug` adapter
-- **Python**: Use `debugpy`
-- **Node.js**: Built-in DAP support
-- **C/C++**: Use `vscode-cpptools`
 
 ## Troubleshooting
 

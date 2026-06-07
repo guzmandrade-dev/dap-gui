@@ -12,6 +12,7 @@ interface EditorState {
   setCurrentFile: (path: string | undefined) => void;
   getFileContent: (path: string) => string | undefined;
   isFileOpen: (path: string) => boolean;
+  reloadFile: (path: string) => Promise<void>;
 }
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
@@ -24,26 +25,39 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   openFile: async (path: string) => {
     const { openFiles, fileContents } = get();
     
-    // If already open, just set as current
-    if (openFiles.includes(path)) {
-      set({ currentFile: path });
-      return;
-    }
-
-    // Try to load file content
+    // Always reload content from disk so external edits are picked up
     try {
       if (window.electronAPI) {
         const content = await window.electronAPI.readFile(path);
         fileContents.set(path, content);
         
+        // Add to openFiles only if not already there
+        const newOpenFiles = openFiles.includes(path) ? openFiles : [...openFiles, path];
+        
         set({
-          openFiles: [...openFiles, path],
+          openFiles: newOpenFiles,
           currentFile: path,
           fileContents: new Map(fileContents),
         });
       }
     } catch (err) {
       console.error('Failed to open file:', path, err);
+    }
+  },
+
+  reloadFile: async (path: string) => {
+    const { fileContents } = get();
+    
+    try {
+      if (window.electronAPI) {
+        const content = await window.electronAPI.readFile(path);
+        fileContents.set(path, content);
+        set({
+          fileContents: new Map(fileContents),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to reload file:', path, err);
     }
   },
 

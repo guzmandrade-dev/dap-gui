@@ -75,11 +75,20 @@ export function ResizablePanel({
       <div
         onMouseDown={handleMouseDown}
         className={`
-          absolute top-0 right-0 w-1 h-full cursor-col-resize z-10
-          ${isResizing ? 'bg-accent' : 'bg-transparent'}
+          absolute top-0 right-0 h-full cursor-col-resize z-10
+          flex items-center justify-center
+          ${isResizing ? 'bg-accent/20' : 'bg-transparent hover:bg-border/50'}
         `}
-        style={{ transform: 'translateX(50%)' }}
-      />
+        style={{ width: '6px', transform: 'translateX(50%)' }}
+        title="Drag to resize"
+      >
+        <div
+          className={`
+            w-px h-8 rounded-full transition-colors
+            ${isResizing ? 'bg-accent' : 'bg-border'}
+          `}
+        />
+      </div>
     </div>
   );
 }

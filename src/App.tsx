@@ -75,7 +75,17 @@ function App() {
     return () => observer.disconnect();
   }, [isEditorCollapsed, explorerWidth, sidebarWidth]);
 
-  // Keyboard shortcuts for debugging
+  // Sync debugStore currentFile to editorStore so the code viewer opens automatically
+  useEffect(() => {
+    let prevCurrentFile: string | undefined = useDebugStore.getState().currentFile;
+    const unsubscribe = useDebugStore.subscribe((state) => {
+      if (state.currentFile && state.currentFile !== prevCurrentFile) {
+        useEditorStore.getState().openFile(state.currentFile);
+      }
+      prevCurrentFile = state.currentFile;
+    });
+    return unsubscribe;
+  }, []);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input, textarea, or contenteditable

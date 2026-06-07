@@ -1,8 +1,17 @@
-import Editor, { OnMount } from '@monaco-editor/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, Component, type ReactNode } from 'react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-markup-templating';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-markdown';
 import { useEditorStore } from '../../stores/editorStore';
 import { useDebugStore } from '../../stores/debugStore';
-import { useConfigStore } from '../../stores/configStore';
 import { getLanguageForFile, fetchFileContent } from '../../utils/fileLoader';
 
 interface Settings {
@@ -20,26 +29,96 @@ interface CodeViewerProps {
   onCollapse?: () => void;
 }
 
-export function CodeViewer({ className, onCollapse }: CodeViewerProps) {
-  const editorRef = useRef<any>(null);
-  const monacoRef = useRef<any>(null);
-  const decorationsRef = useRef<string[]>([]);
-  const breakpointsRef = useRef<Map<string, Set<number>>>(new Map());
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+const prismLanguageMap: Record<string, string> = {
+  php: 'php',
+  javascript: 'javascript',
+  typescript: 'typescript',
+  json: 'json',
+  xml: 'markup',
+  html: 'markup',
+  css: 'css',
+  scss: 'css',
+  markdown: 'markdown',
+  sql: 'sql',
+};
 
-  const { currentFile, fileContents } = useEditorStore();
+const MAX_RENDER_LINES = 10_000;
+
+function getPrismLanguage(filePath: string): string | null {
+  const lang = getLanguageForFile(filePath);
+  const mapped = prismLanguageMap[lang];
+  if (!mapped) return null;
+  const grammar = Prism.languages[mapped];
+  return grammar ? mapped : null;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function highlightLine(line: string, lang: string | null): string {
+  if (!lang) return escapeHtml(line);
+  try {
+    const grammar = Prism.languages[lang];
+    if (!grammar) return escapeHtml(line);
+    return Prism.highlight(line, grammar, lang);
+  } catch (e) {
+    console.error('Prism highlight error:', e);
+    return escapeHtml(line);
+  }
+}
+
+// ── Error Boundary ──────────────────────────────────────────────
+
+interface EBState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class CodeViewerErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  EBState
+> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): EBState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('CodeViewer crashed:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// ── Inner component ─────────────────────────────────────────────
+
+function CodeViewerInner({ className, onCollapse }: CodeViewerProps) {
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { currentFile, fileContents, reloadFile } = useEditorStore();
   const {
     currentLine,
     isPaused,
     breakpoints,
     setBreakpoint,
-    removeBreakpoint
+    removeBreakpoint,
   } = useDebugStore();
-  const { theme } = useConfigStore();
 
-  // Keep breakpoints ref up to date so the editor mount handler always sees the latest
-  breakpointsRef.current = breakpoints;
-
+  // Load settings
   useEffect(() => {
     const load = async () => {
       try {
@@ -67,12 +146,10 @@ export function CodeViewer({ className, onCollapse }: CodeViewerProps) {
 
   const openInEditor = async () => {
     if (!currentFile) return;
-
     const line = currentLine || 1;
     const args = settings.editorArgs
       .replace('{file}', currentFile)
       .replace('{line}', line.toString());
-
     try {
       await window.electronAPI?.execCommand?.(`${settings.editorCommand} ${args}`);
     } catch (err) {
@@ -81,112 +158,53 @@ export function CodeViewer({ className, onCollapse }: CodeViewerProps) {
     }
   };
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    monacoRef.current = monaco;
-
-    editor.onMouseDown((e: any) => {
-      const targetType = e.target.type;
-
-      // Check if click is in gutter area
-      const isGutter =
-        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS;
-
-      // Check if click is directly on a breakpoint glyph decoration
-      // (Monaco may report a different target type when clicking on custom decorations)
-      let isBreakpointElement = false;
-      let el = e.target.element;
-      const editorDomNode = editor.getDomNode();
-      while (el && el !== editorDomNode) {
-        if (el.classList?.contains('breakpoint-glyph')) {
-          isBreakpointElement = true;
-          break;
-        }
-        el = el.parentElement;
-      }
-
-      if (isGutter || isBreakpointElement) {
-        const line = e.target.position?.lineNumber;
-        if (!line || !currentFile) return;
-
-        const fileBPs = breakpointsRef.current.get(currentFile) || new Set();
-        const hasBP = fileBPs.has(line);
-
-        if (hasBP) {
-          removeBreakpoint(currentFile, line);
-        } else {
-          setBreakpoint(currentFile, line);
-        }
-      }
-    });
-  };
-
+  // Load file content
   useEffect(() => {
     if (!currentFile) return;
-
     const loadFile = async () => {
       try {
         const content = await fetchFileContent(currentFile);
         useEditorStore.setState((state) => ({
-          fileContents: new Map(state.fileContents).set(currentFile, content)
+          fileContents: new Map(state.fileContents).set(currentFile, content),
         }));
       } catch (err) {
         console.error('Failed to load file:', err);
       }
     };
-
     if (!fileContents.has(currentFile)) {
       loadFile();
     }
   }, [currentFile]);
 
+  const rawContent = currentFile ? fileContents.get(currentFile) || '' : '';
+  // Strip Windows \r so lines don't end with carriage returns
+  const content = rawContent.replace(/\r/g, '');
+  const lines = useMemo(() => content.split('\n'), [content]);
+  const fileBPs = currentFile ? breakpoints.get(currentFile) : undefined;
+  const prismLang = useMemo(() => (currentFile ? getPrismLanguage(currentFile) : null), [currentFile]);
+
+  const toggleBreakpoint = useCallback((line: number) => {
+    if (!currentFile) return;
+    if (fileBPs?.has(line)) {
+      removeBreakpoint(currentFile, line);
+    } else {
+      setBreakpoint(currentFile, line);
+    }
+  }, [currentFile, fileBPs, setBreakpoint, removeBreakpoint]);
+
+  // Scroll current line into view
   useEffect(() => {
-    if (!editorRef.current || !monacoRef.current || !currentFile) return;
+    if (!currentLine || !scrollRef.current) return;
+    if (currentLine < 1 || currentLine > lines.length) return;
+    // Calculate approximate scroll position instead of using refs
+    const lineHeight = 20;
+    const targetScroll = (currentLine - 1) * lineHeight - scrollRef.current.clientHeight / 2 + lineHeight / 2;
+    scrollRef.current.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+  }, [currentLine, lines.length]);
 
-    const monaco = monacoRef.current;
-    const editor = editorRef.current;
-    const model = editor.getModel();
-
-    if (!model) return;
-
-    if (decorationsRef.current.length > 0) {
-      editor.deltaDecorations(decorationsRef.current, []);
-    }
-
-    const newDecorations: any[] = [];
-
-    const fileBPs = breakpoints.get(currentFile) || new Set();
-    fileBPs.forEach(line => {
-      newDecorations.push({
-        range: new monaco.Range(line, 1, line, 1),
-        options: {
-          glyphMarginClassName: 'breakpoint-glyph',
-          overviewRuler: { color: '#dc2626', position: 1 },
-          minimap: { color: '#dc2626', position: 1 },
-        }
-      });
-    });
-
-    if (isPaused && currentLine) {
-      newDecorations.push({
-        range: new monaco.Range(currentLine, 1, currentLine, 1),
-        options: {
-          isWholeLine: true,
-          className: 'current-line-highlight',
-          glyphMarginClassName: 'breakpoint-glyph current-line-glyph',
-        }
-      });
-
-      editor.revealLineInCenter(currentLine);
-    }
-
-    decorationsRef.current = editor.deltaDecorations([], newDecorations);
-  }, [currentFile, currentLine, breakpoints, isPaused]);
-
-  const content = currentFile ? fileContents.get(currentFile) || '' : '';
-  const language = currentFile ? getLanguageForFile(currentFile) : 'plaintext';
-  const fileName = currentFile ? currentFile.split('/').pop() : '';
+  const fileName = currentFile ? currentFile.split(/[\\/]/).pop() : '';
+  const isTruncated = lines.length > MAX_RENDER_LINES;
+  const visibleLines = isTruncated ? lines.slice(0, MAX_RENDER_LINES) : lines;
 
   if (!currentFile) {
     return (
@@ -201,57 +219,123 @@ export function CodeViewer({ className, onCollapse }: CodeViewerProps) {
   }
 
   return (
-    <div className={className}>
-      <div className="h-full flex flex-col">
-        <div className="h-9 bg-panel border-b border-border flex items-center justify-between px-3 flex-shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={openInEditor}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-elevated text-secondary shrink-0"
-              title={`Open in ${settings.editorCommand}`}
-            >
-              <span>📝</span>
-              <span>Open in Editor</span>
-            </button>
-            <span className="text-secondary text-sm truncate" title={currentFile}>
-              {fileName}
-            </span>
-            {currentLine && (
-              <span className="text-xs text-muted">
-                :{currentLine}
-              </span>
-            )}
-          </div>
+    <div className={`${className} h-full flex flex-col`}>
+      {/* Toolbar */}
+      <div className="h-9 bg-panel border-b border-border flex items-center justify-between px-3 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
           <button
-            onClick={onCollapse}
-            className="w-7 h-7 flex items-center justify-center rounded bg-elevated text-muted hover:text-text hover:bg-border transition-colors shrink-0"
-            title="Collapse editor"
+            onClick={openInEditor}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs bg-elevated text-secondary shrink-0"
+            title={`Open in ${settings.editorCommand}`}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 4l5 4-5 4" />
-            </svg>
+            <span>📝</span>
+            <span>Open in Editor</span>
           </button>
+          <button
+            onClick={() => currentFile && reloadFile(currentFile)}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs bg-elevated text-secondary shrink-0"
+            title="Reload file from disk"
+          >
+            <span>🔄</span>
+            <span>Reload</span>
+          </button>
+          <span className="text-secondary text-sm truncate" title={currentFile}>
+            {fileName}
+          </span>
+          {currentLine && (
+            <span className="text-xs text-muted">
+              :{currentLine}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onCollapse}
+          className="w-7 h-7 flex items-center justify-center rounded bg-elevated text-muted hover:text-text hover:bg-border transition-colors shrink-0"
+          title="Collapse editor"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 4l5 4-5 4" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Code area */}
+      <div ref={scrollRef} className="flex-1 overflow-auto min-h-0">
+        <div className="flex font-mono text-[13px] leading-5">
+          {/* Line numbers / breakpoint gutter */}
+          <div className="flex-shrink-0 select-none text-right bg-panel border-r border-border">
+            {visibleLines.map((_, i) => {
+              const lineNum = i + 1;
+              const hasBP = fileBPs?.has(lineNum);
+              const isCurrent = currentLine === lineNum && isPaused;
+              return (
+                <div
+                  key={`gutter-${lineNum}`}
+                  onClick={() => toggleBreakpoint(lineNum)}
+                  className={`
+                    px-2 cursor-pointer flex items-center justify-end gap-1
+                    ${isCurrent ? 'bg-warning/15 text-warning' : 'text-muted hover:text-text hover:bg-elevated'}
+                  `}
+                  style={{ height: '20px' }}
+                  title={hasBP ? 'Remove breakpoint' : 'Add breakpoint'}
+                >
+                  {hasBP && (
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
+                  )}
+                  <span className="w-6 text-right">{lineNum}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Code lines */}
+          <div className="flex-1 min-w-0">
+            {visibleLines.map((line, i) => {
+              const lineNum = i + 1;
+              const isCurrent = currentLine === lineNum && isPaused;
+              const highlighted = highlightLine(line, prismLang);
+
+              return (
+                <div
+                  key={`line-${lineNum}`}
+                  className={`
+                    px-3 whitespace-pre
+                    ${isCurrent ? 'bg-warning/15 border-l-2 border-warning' : ''}
+                  `}
+                  style={{ height: '20px' }}
+                  dangerouslySetInnerHTML={{ __html: highlighted || '&nbsp;' }}
+                />
+              );
+            })}
+          </div>
         </div>
 
-        <div className="flex-1">
-          <Editor
-            height="100%"
-            theme={theme === 'light' ? 'vs' : 'vs-dark'}
-            path={currentFile}
-            value={content}
-            language={language}
-            options={{
-              readOnly: true,
-              glyphMargin: true,
-              lineNumbers: 'on',
-              folding: true,
-              minimap: { enabled: true },
-              automaticLayout: true,
-            }}
-            onMount={handleEditorMount}
-          />
-        </div>
+        {isTruncated && (
+          <div className="p-4 text-center text-muted text-sm">
+            File truncated — {lines.length.toLocaleString()} lines total.
+            Use "Open in Editor" to view the full file.
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+// ── Exported wrapped component ──────────────────────────────────
+
+export function CodeViewer(props: CodeViewerProps) {
+  return (
+    <CodeViewerErrorBoundary
+      fallback={
+        <div className={`${props.className} flex items-center justify-center bg-surface text-danger`}>
+          <div className="text-center">
+            <div className="text-lg font-semibold mb-2">⚠️ Viewer Error</div>
+            <div className="text-sm text-muted">The code viewer crashed. Check the DevTools console for details.</div>
+          </div>
+        </div>
+      }
+    >
+      <CodeViewerInner {...props} />
+    </CodeViewerErrorBoundary>
   );
 }

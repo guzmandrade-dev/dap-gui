@@ -11,13 +11,16 @@ export class DebugSession {
   private initializedPromise: Promise<void>;
   private initializedResolve!: () => void;
 
-  constructor(private config: LaunchConfiguration) {
+  constructor(private config: LaunchConfiguration, private workspaceRoot: string = '') {
     this.client = new DAPClient();
     this.setupEventHandlers();
 
-    // Store path mappings from config
+    // Store path mappings from config, resolving ${workspaceFolder}
     if (config.pathMappings) {
-      this.pathMappings = config.pathMappings;
+      this.pathMappings = {};
+      for (const [serverPrefix, localPrefix] of Object.entries(config.pathMappings)) {
+        this.pathMappings[serverPrefix] = localPrefix.replace(/\$\{workspaceFolder\}/g, this.workspaceRoot);
+      }
     }
 
     this.initializedPromise = new Promise((resolve) => {

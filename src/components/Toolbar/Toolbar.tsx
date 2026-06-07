@@ -31,10 +31,17 @@ export function Toolbar() {
   const { isSessionActive, isPaused, startSession, stopSession, continue: continueExecution, stepOver, stepInto, stepOut, pause } = useDebugStore();
   const { selectedConfig, configs, selectConfig, loadConfigs } = useConfigStore();
   const [showNoConfigModal, setShowNoConfigModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (selectedConfig) {
-      startSession(selectedConfig);
+      try {
+        await startSession(selectedConfig);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setErrorMessage(msg);
+        console.error('Failed to start session:', err);
+      }
     } else {
       setShowNoConfigModal(true);
     }
@@ -198,6 +205,36 @@ export function Toolbar() {
                 className="px-4 py-2 text-sm bg-accent text-accent-text rounded hover:opacity-90"
               >
                 Create launch.json
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-panel border border-border rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-danger mb-2">Debug Session Failed</h3>
+            <p className="text-sm text-secondary mb-4 whitespace-pre-wrap">{errorMessage}</p>
+            {errorMessage.includes('Adapter not found') && (
+              <p className="text-sm text-secondary mb-4">
+                Install the PHP Debug adapter from the <strong>Adapters</strong> panel, or download it from the
+                {' '}
+                <a
+                  href="https://github.com/xdebug/vscode-php-debug/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  releases page</a>.
+              </p>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="px-4 py-2 text-sm bg-accent text-accent-text rounded hover:opacity-90"
+              >
+                OK
               </button>
             </div>
           </div>

@@ -19,9 +19,9 @@ export interface ElectronAPI {
   onWorkspaceChanged: (callback: (path: string) => void) => () => void;
 
   // Settings
-  getAppSettings: () => Promise<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string }>;
-  setAppSettings: (settings: Partial<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string }>) => Promise<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string }>;
-  onSettingsChanged: (callback: (settings: { theme: 'dark' | 'light'; editorCommand: string; editorArgs: string }) => void) => () => void;
+  getAppSettings: () => Promise<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string; persistentBreakpoints: boolean }>;
+  setAppSettings: (settings: Partial<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string; persistentBreakpoints: boolean }>) => Promise<{ theme: 'dark' | 'light'; editorCommand: string; editorArgs: string; persistentBreakpoints: boolean }>;
+  onSettingsChanged: (callback: (settings: { theme: 'dark' | 'light'; editorCommand: string; editorArgs: string; persistentBreakpoints: boolean }) => void) => () => void;
 
   // Window controls
   windowMinimize: () => Promise<void>;

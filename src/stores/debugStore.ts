@@ -2,6 +2,67 @@ import { create } from 'zustand';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { LaunchConfiguration } from '../dap/types';
 
+const BREAKPOINTS_FILENAME = '.vscode/dap-gui.breakpoints.json';
+
+async function getBreakpointsPath(): Promise<string | null> {
+  if (!window.electronAPI) return null;
+  const root = await window.electronAPI.getWorkspaceRoot();
+  if (!root) return null;
+  return window.electronAPI.pathJoin(root, BREAKPOINTS_FILENAME);
+}
+
+async function loadBreakpoints(): Promise<Map<string, Set<number>>> {
+  if (!window.electronAPI) return new Map();
+  try {
+    const settings = await window.electronAPI.getAppSettings();
+    if (!settings.persistentBreakpoints) return new Map();
+  } catch {
+    return new Map();
+  }
+
+  const bpPath = await getBreakpointsPath();
+  if (!bpPath) return new Map();
+  try {
+    const exists = await window.electronAPI!.fileExists(bpPath);
+    if (!exists) return new Map();
+    const content = await window.electronAPI!.readFile(bpPath);
+    const data = JSON.parse(content) as Record<string, number[]>;
+    const map = new Map<string, Set<number>>();
+    for (const [file, lines] of Object.entries(data)) {
+      map.set(file, new Set(lines));
+    }
+    return map;
+  } catch (err) {
+    console.error('Failed to load breakpoints:', err);
+    return new Map();
+  }
+}
+
+async function saveBreakpoints(breakpoints: Map<string, Set<number>>): Promise<void> {
+  if (!window.electronAPI) return;
+  try {
+    const settings = await window.electronAPI.getAppSettings();
+    if (!settings.persistentBreakpoints) return;
+  } catch {
+    return;
+  }
+
+  const bpPath = await getBreakpointsPath();
+  if (!bpPath) return;
+  try {
+    const data: Record<string, number[]> = {};
+    for (const [file, lines] of breakpoints) {
+      if (lines.size > 0) {
+        data[file] = Array.from(lines);
+      }
+    }
+    const json = JSON.stringify(data, null, 2);
+    await window.electronAPI!.writeFile(bpPath, json);
+  } catch (err) {
+    console.error('Failed to save breakpoints:', err);
+  }
+}
+
 interface DebugState {
   // Session state
   isSessionActive: boolean;
@@ -86,6 +147,12 @@ export const useDebugStore = create<DebugState>()((set, get) => ({
       const root = await window.electronAPI.getWorkspaceRoot();
       set({ workspaceRoot: root });
       
+      // Load persisted breakpoints
+      const loaded = await loadBreakpoints();
+      if (loaded.size > 0) {
+        set({ breakpoints: loaded });
+      }
+      
       // Setup DAP event listeners
       window.electronAPI.onDapStopped((event) => {
         get().onStopped(event as DebugProtocol.StoppedEvent['body']);
@@ -147,7 +214,9 @@ export const useDebugStore = create<DebugState>()((set, get) => ({
         recent.unshift(config);
         set({ recentConfigs: recent.slice(0, 5) });
       } else {
-        console.error('Failed to start session:', result?.error);
+        const errorMsg = result?.error || 'Unknown error starting debug session';
+        console.error('Failed to start session:', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Failed to start session:', error);
@@ -300,7 +369,20 @@ export const useDebugStore = create<DebugState>()((set, get) => ({
   },
 
   selectFrame: (frameId: number) => {
-    set({ currentFrameId: frameId });
+    const frame = get().stackFrames.find(f => f.id === frameId);
+    if (frame?.source?.path) {
+      window.electronAPI.pathResolve(frame.source.path).then(localPath => {
+        set({
+          currentFrameId: frameId,
+          currentFile: localPath,
+          currentLine: frame.line,
+        });
+        // Re-evaluate watches for the new frame
+        get().evaluateWatches();
+      });
+    } else {
+      set({ currentFrameId: frameId });
+    }
   },
 
   setBreakpoint: async (file: string, line: number) => {
@@ -317,6 +399,9 @@ export const useDebugStore = create<DebugState>()((set, get) => ({
     verified.set(file, fileVerified);
 
     set({ breakpoints, breakpointVerified: verified });
+    
+    // Persist to disk
+    await saveBreakpoints(breakpoints);
 
     // Send to adapter if session active
     if (get().isSessionActive) {
@@ -344,6 +429,9 @@ export const useDebugStore = create<DebugState>()((set, get) => ({
     }
 
     set({ breakpoints, breakpointVerified: verified });
+    
+    // Persist to disk
+    await saveBreakpoints(breakpoints);
 
     if (get().isSessionActive) {
       const lines = breakpoints.get(file) || new Set();

@@ -4,11 +4,13 @@ import { useConfigStore } from '../../stores/configStore';
 interface Settings {
   editorCommand: string;
   editorArgs: string;
+  persistentBreakpoints: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   editorCommand: 'code',
   editorArgs: '{file}',
+  persistentBreakpoints: false,
 };
 
 export function SettingsPanel() {
@@ -24,6 +26,7 @@ export function SettingsPanel() {
           setSettings({
             editorCommand: appSettings.editorCommand,
             editorArgs: appSettings.editorArgs,
+            persistentBreakpoints: appSettings.persistentBreakpoints,
           });
         }
       } catch (e) {
@@ -36,6 +39,7 @@ export function SettingsPanel() {
       setSettings({
         editorCommand: appSettings.editorCommand,
         editorArgs: appSettings.editorArgs,
+        persistentBreakpoints: appSettings.persistentBreakpoints,
       });
     });
     return () => unsubscribe?.();
@@ -46,6 +50,7 @@ export function SettingsPanel() {
       await window.electronAPI?.setAppSettings({
         editorCommand: settings.editorCommand,
         editorArgs: settings.editorArgs,
+        persistentBreakpoints: settings.persistentBreakpoints,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -140,6 +145,25 @@ export function SettingsPanel() {
           >
             {saved ? '✓ Saved!' : 'Save Settings'}
           </button>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-bold text-text mb-4">Debugger</h3>
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.persistentBreakpoints}
+              onChange={(e) => setSettings({ ...settings, persistentBreakpoints: e.target.checked })}
+              className="w-4 h-4 accent-accent"
+            />
+            <span className="text-sm text-text">Persistent Breakpoints</span>
+          </label>
+          <p className="text-xs text-muted">
+            Save breakpoints to <code>.vscode/dap-gui.breakpoints.json</code> and restore them on project open.
+          </p>
         </div>
       </div>
 

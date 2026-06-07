@@ -16,7 +16,7 @@ export interface AdapterInfo {
 }
 
 // Catalog of popular debug adapters from Open VSX
-// URLs use the Open VSX API format: https://open-vsx.org/api/{namespace}/{extension}/latest
+// Currently focused on PHP/Xdebug. Other languages can be added via custom install.
 export const ADAPTER_CATALOG: AdapterInfo[] = [
   {
     id: 'felixfbecker.php-debug',
@@ -29,39 +29,6 @@ export const ADAPTER_CATALOG: AdapterInfo[] = [
     installed: false,
     entryPoint: 'extension/out/phpDebug.js',
     supportedLanguages: ['php'],
-  },
-  {
-    id: 'ms-python.debugpy',
-    name: 'Python Debugger',
-    description: 'Python debugging with debugpy',
-    publisher: 'ms-python',
-    version: '2024.0.0',
-    downloadUrl: 'https://open-vsx.org/api/ms-python/debugpy/latest/file/ms-python.debugpy-2024.0.0.vsix',
-    installed: false,
-    entryPoint: 'extension/bundled/libs/debugpy/adapter',
-    supportedLanguages: ['python'],
-  },
-  {
-    id: 'vadimcn.vscode-lldb',
-    name: 'CodeLLDB',
-    description: 'Native debugger for LLDB',
-    publisher: 'vadimcn',
-    version: '1.10.0',
-    downloadUrl: 'https://open-vsx.org/api/vadimcn/vscode-lldb/latest/file/vadimcn.vscode-lldb-1.10.0.vsix',
-    installed: false,
-    entryPoint: 'extension/adapter/codelldb',
-    supportedLanguages: ['c', 'cpp', 'rust'],
-  },
-  {
-    id: 'ms-vscode.node-debug2',
-    name: 'Node Debug',
-    description: 'Node.js debugging',
-    publisher: 'ms-vscode',
-    version: '1.44.0',
-    downloadUrl: 'https://open-vsx.org/api/ms-vscode/node-debug2/latest/file/ms-vscode.node-debug2-1.44.0.vsix',
-    installed: false,
-    entryPoint: 'extension/out/src/nodeDebug.js',
-    supportedLanguages: ['javascript', 'typescript'],
   },
 ];
 
