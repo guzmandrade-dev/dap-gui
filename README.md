@@ -6,7 +6,8 @@ A standalone DAP (Debug Adapter Protocol) client GUI application built with Elec
 
 - **Xdebug / PHP Focus**: First-class support for PHP debugging via the `vscode-php-debug` adapter
 - **PrismJS Code Viewer**: Lightweight, read-only code viewer with syntax highlighting and breakpoint gutter support
-- **Path Mapping**: Full support for remote debugging with path mappings
+- **Path Mapping**: Full support for remote debugging with `${workspaceFolder}` resolution in path mappings
+- **Persistent Breakpoints**: Optional setting to save and restore breakpoints across sessions
 - **Call Stack View**: Navigate through the call stack during debugging — click any frame to jump to its source
 - **Variables Panel**: Inspect variables at different scopes with expandable children
 - **Watch Panel**: Evaluate and monitor custom expressions while debugging
@@ -16,6 +17,28 @@ A standalone DAP (Debug Adapter Protocol) client GUI application built with Elec
 - **Workspace Integration**: Open workspace directly in your preferred external editor
 - **Collapsible Layout**: Collapse the editor panel to focus on file explorer and debug tools
 - **Keyboard Shortcuts**: Standard debug shortcuts (F5, F10, F11, Shift+F5, Shift+F11)
+
+## Screenshots
+
+### Breakpoint Gutter (Dark Theme)
+Click the gutter to toggle breakpoints. The current execution line is highlighted in yellow.
+
+![Breakpoint Gutter Dark](docs/breakpoint-dark.png)
+
+### Breakpoint Gutter (Light Theme)
+The same view in light mode.
+
+![Breakpoint Gutter Light](docs/breakpoint-light.png)
+
+### Watch Panel
+Monitor custom expressions as you step through code.
+
+![Watch Panel](docs/watch.png)
+
+### Adapter Manager
+Install, uninstall, and manage DAP adapters from the built-in catalog.
+
+![Adapter Manager](docs/adapters.png)
 
 ## Project Structure
 
@@ -115,7 +138,7 @@ Add custom expressions (e.g., `$myVariable`, `$_SERVER['REQUEST_URI']`) to monit
 Navigate between stack frames to inspect variables at different levels of execution. Click any frame to jump directly to its source file and line in the editor.
 
 ### Breakpoints
-View and manage all breakpoints set across the workspace.
+View and manage all breakpoints set across the workspace. Enable **Persistent Breakpoints** in Settings to save them to `.vscode/dap-gui.breakpoints.json` and restore them on the next session.
 
 ### Adapters
 Install, uninstall, and manage DAP adapters. The built-in catalog currently lists the **PHP Debug** adapter. You can also install any adapter from a `.vsix` file.
@@ -179,7 +202,20 @@ The application supports path mappings for remote debugging. Configure them in y
 }
 ```
 
-This converts server paths to local paths when displaying files and vice versa when setting breakpoints.
+`${workspaceFolder}` is automatically resolved to the current workspace root, so breakpoints and stack traces map correctly between server and local paths.
+
+## Persistent Breakpoints
+
+By default, breakpoints are kept in memory only. To save them across sessions:
+
+1. Open the **Settings** panel
+2. Check **Persistent Breakpoints**
+3. Breakpoints are saved to `.vscode/dap-gui.breakpoints.json` in your workspace
+4. On the next project open, they are restored automatically
+
+## File Reload
+
+The code viewer always loads the latest file content from disk when you open a file. If you edit a file in an external editor while it's already open, click the **🔄 Reload** button in the editor toolbar to refresh the content.
 
 ## Troubleshooting
 
