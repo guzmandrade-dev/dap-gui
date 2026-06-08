@@ -1,5 +1,9 @@
 # simple-dap-gui - Xdebug Debugger GUI
 
+[![Build](https://github.com/guzmandrade-dev/dap-gui/actions/workflows/build.yml/badge.svg)](https://github.com/guzmandrade-dev/dap-gui/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/guzmandrade-dev/dap-gui)](https://github.com/guzmandrade-dev/dap-gui/releases)
+
 A standalone DAP (Debug Adapter Protocol) client GUI application built with Electron, React, TypeScript, and PrismJS. Primarily designed for **PHP debugging with Xdebug**.
 
 ## Features

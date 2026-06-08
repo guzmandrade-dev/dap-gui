@@ -6,7 +6,7 @@ export function resolvePathMappings(
   workspaceRoot: string
 ): string {
   for (const [serverPrefix, localPrefix] of Object.entries(mappings)) {
-    const resolvedLocal = localPrefix.replace('${workspaceFolder}', workspaceRoot);
+    const resolvedLocal = localPrefix.replace(/\$\{workspaceFolder\}/g, workspaceRoot);
     if (serverPath.startsWith(serverPrefix)) {
       return serverPath.replace(serverPrefix, resolvedLocal);
     }
@@ -20,7 +20,7 @@ export function resolveLocalToServerPath(
   workspaceRoot: string
 ): string {
   for (const [serverPrefix, localPrefix] of Object.entries(mappings)) {
-    const resolvedLocal = localPrefix.replace('${workspaceFolder}', workspaceRoot);
+    const resolvedLocal = localPrefix.replace(/\$\{workspaceFolder\}/g, workspaceRoot);
     if (localPath.startsWith(resolvedLocal)) {
       return localPath.replace(resolvedLocal, serverPrefix);
     }
