@@ -22,7 +22,10 @@
     "prismjs",
     "xdebug"
   ],
-  "author": "",
+  "author": {
+    "name": "guzmandrade-dev",
+    "email": "117118816+guzmandrade-dev@users.noreply.github.com"
+  },
   "license": "MIT",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
