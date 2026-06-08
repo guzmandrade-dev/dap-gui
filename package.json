@@ -60,9 +60,28 @@
     "zustand": "^4.4.7"
   },
   "build": {
+    "appId": "com.guzmandrade.simple-dap-gui",
+    "productName": "simple-dap-gui",
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
-    ]
+    ],
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb", "tar.gz", "tar.xz"],
+      "category": "Development"
+    },
+    "win": {
+      "target": ["nsis", "zip", "portable"]
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "draft"
+    }
   }
 }

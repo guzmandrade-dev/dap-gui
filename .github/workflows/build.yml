@@ -68,7 +68,6 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.pkg
           if-no-files-found: warn
 
       - name: Upload Linux artifact
@@ -79,11 +78,8 @@ jobs:
           path: |
             dist/*.AppImage
             dist/*.deb
-            dist/*.rpm
-            dist/*.snap
             dist/*.tar.gz
             dist/*.tar.xz
-            dist/*.flatpak
           if-no-files-found: warn
 
       - name: Upload Windows artifact
@@ -93,10 +89,7 @@ jobs:
           name: windows-build
           path: |
             dist/*.exe
-            dist/*.msi
             dist/*.zip
-            dist/*.nsis
-            dist/*.portable
           if-no-files-found: warn
 
   release:
