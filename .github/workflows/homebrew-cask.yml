@@ -8,10 +8,16 @@ jobs:
   homebrew:
     runs-on: macos-latest
     steps:
-      - name: Bump Homebrew Cask
-        uses: dawidd6/action-homebrew-bump-cask@v3
-        with:
-          token: ${{ secrets.HOMEBREW_TOKEN }}
-          cask: simple-dap-gui
-          tap: Homebrew/homebrew-cask
-          force: false
+      - name: Update Homebrew
+        run: brew update
+
+      - name: Bump cask
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          brew bump-cask-pr \
+            --version "$VERSION" \
+            --no-browse \
+            simple-dap-gui
